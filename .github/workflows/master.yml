@@ -1,0 +1,25 @@
+name: .NET Core
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      solution-file: ./src/IdentityServer.sln
+    steps:
+      - uses: actions/checkout@v2
+      - name: Backend build and test
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: "3.1.x"
+      - name: Install dependencies
+        run: dotnet restore ${{env.solution-file}}
+      - name: Build
+        run: dotnet build ${{env.solution-file}} --configuration Release --no-restore
+      - name: Test
+        run: dotnet test ${{env.solution-file}} --no-restore --verbosity normal
