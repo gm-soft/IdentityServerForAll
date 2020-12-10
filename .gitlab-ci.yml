@@ -1,0 +1,324 @@
+stages:
+  - backend test
+  - frontend test
+  - build
+  - deploy
+
+backend test:
+  stage: backend test
+  image: mcr.microsoft.com/dotnet/sdk:5.0
+  only:
+    - merge_requests
+  variables:
+    SOLUTION_FILE: "./src/Feedback-360.sln"
+  cache:
+    key: "build_dependency_dotnet"
+    paths:
+      - nuget/
+  before_script:
+    - "dotnet restore $SOLUTION_FILE"
+  script:
+    - dotnet build $SOLUTION_FILE --configuration Release
+    - echo !!!Build finished
+    - dotnet test $SOLUTION_FILE
+
+# TODO Maxim: remove copypaste
+# Build steps
+frontend test:
+  stage: frontend test
+  image: node:latest
+  cache:
+    key: "build_dependency_node"
+    paths:
+      - src/PC.Frontend/node_modules/
+  only:
+    - merge_requests
+  script:
+    # install dependencies to use chrome w/ puppeteer
+    - apt update && apt install -yq gconf-service libasound2 libatk1.0-0 libc6 libcairo2 libcups2 libdbus-1-3 libexpat1 libfontconfig1 libgcc1 libgconf-2-4 libgdk-pixbuf2.0-0 libglib2.0-0 libgtk-3-0 libnspr4 libpango-1.0-0 libpangocairo-1.0-0 libstdc++6 libx11-6 libx11-xcb1 libxcb1 libxcomposite1 libxcursor1 libxdamage1 libxext6 libxfixes3 libxi6 libxrandr2 libxrender1 libxss1 libxtst6 ca-certificates fonts-liberation libappindicator1 libnss3 lsb-release xdg-utils wget
+    - cd ./src/PC.Frontend/
+    - npm set progress=false
+    - npm install --no-optional
+    - npm run lint
+    - npm run build
+    - npm run test-headless-ci-only
+
+# build containers steps
+build containers api:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - qa
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_CORE_API_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/api
+
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - sed -i "s,{DATABASE_HOST},${DATABASE_HOST},g;s,{DATABASE_PORT},${DATABASE_PORT},g;s,{DATABASE_STAGING},${DATABASE_STAGING},g;s,{DATABASE_PROD},${DATABASE_PROD},g;s,{DATABASE_USER},${DATABASE_USER},g;s,{DATABASE_PASS},${DATABASE_PASS},g" src/Petrel.Core.Api/appsettings*.json
+    - cd src
+
+  script:
+    - docker build -t $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE:latest  .
+    - docker push $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE
+
+build containers api-prod:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - master
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_CORE_API_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/api-prod
+
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - sed -i "s,{DATABASE_HOST},${DATABASE_HOST},g;s,{DATABASE_PORT},${DATABASE_PORT},g;s,{DATABASE_STAGING},${DATABASE_STAGING},g;s,{DATABASE_PROD},${DATABASE_PROD},g;s,{DATABASE_USER},${DATABASE_USER},g;s,{DATABASE_PASS},${DATABASE_PASS},g" src/Petrel.Core.Api/appsettings*.json
+    - cd src
+
+  script:
+    - docker build -t $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE:latest  .
+    - docker push $CONTAINER_RELEASE_PETREL_CORE_API_IMAGE
+
+build containers identity:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - qa
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/identity
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - sed -i "s,{DATABASE_HOST},${DATABASE_HOST},g;s,{DATABASE_PORT},${DATABASE_PORT},g;s,{DATABASE_IDENTITY_PROD},${DATABASE_IDENTITY_PROD},g;s,{DATABASE_IDENTITY},${DATABASE_IDENTITY},g;s,{DATABASE_USER},${DATABASE_USER},g;s,{DATABASE_PASS},${DATABASE_PASS},g;s,{GOOGLE_CLIENT_ID},${GOOGLE_CLIENT_ID},g;s,{GOOGLE_CLIENT_SECRET},${GOOGLE_CLIENT_SECRET},g" src/Petrel.IdentityServer/appsettings*.json
+    - cd src
+
+  script:
+    - docker build -f Dockerfile_Identity -t $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE:lastest .
+    - docker push $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE
+
+  after_script:
+    - docker logout registry.gitlab.com
+
+build containers identity-prod:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - master
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/identity-prod
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - sed -i "s,{DATABASE_HOST},${DATABASE_HOST},g;s,{DATABASE_PORT},${DATABASE_PORT},g;s,{DATABASE_IDENTITY_PROD},${DATABASE_IDENTITY_PROD},g;s,{DATABASE_IDENTITY},${DATABASE_IDENTITY},g;s,{DATABASE_USER},${DATABASE_USER},g;s,{DATABASE_PASS},${DATABASE_PASS},g;s,{GOOGLE_CLIENT_ID},${GOOGLE_CLIENT_ID},g;s,{GOOGLE_CLIENT_SECRET},${GOOGLE_CLIENT_SECRET},g" src/Petrel.IdentityServer/appsettings*.json
+    - cd src
+
+  script:
+    - docker build -f Dockerfile_Identity -t $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE:lastest .
+    - docker push $CONTAINER_RELEASE_PETREL_IDENTITY_SERVER_IMAGE
+
+  after_script:
+    - docker logout registry.gitlab.com
+
+build containers for stage front:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - qa
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/frontend
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - cd src
+
+  script:
+    - docker build -f Dockerfile_Frontend -t $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE:latest .
+    - docker push $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE
+
+  after_script:
+    - docker logout registry.gitlab.com
+
+build containers for production front:
+  image: docker:stable
+  tags:
+    - shared
+  stage: build
+  except:
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /skip_build/
+  only:
+    - master
+  variables:
+    DOCKER_HOST: tcp://docker:2375/
+    DOCKER_DRIVER: overlay2
+    CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE: registry.gitlab.com/petrel-ai/petrel-intranet/petrel.intranet/frontend-prod
+  services:
+    - docker:dind
+
+  before_script:
+    - env
+    - docker version
+    - docker info
+    - docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com
+    - cd src
+
+  script:
+    - docker build -f Dockerfile_Frontend_Prod -t $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE:$CI_COMMIT_SHA -t $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE:latest .
+    - docker push $CONTAINER_RELEASE_PETREL_FRONTEND_IMAGE
+
+  after_script:
+    - docker logout registry.gitlab.com
+
+deploy to staging:
+  image: docker:stable
+  tags:
+    - shared
+  stage: deploy
+  only:
+    - qa
+  environment:
+    name: staging
+  before_script:
+    - apk update
+    - apk add openssh curl
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "${DEPLOY_STAGING_SERVER_PRIVATE_KEY}" | tr -d '\r' > ~/.ssh/ssh.pem
+    - chmod 600 ~/.ssh/ssh.pem
+    - ssh-keyscan -p ${DEPLOYMENT_PORT} -H ${DEPLOYMENT_STAGING_SERVER_IP} >> ~/.ssh/known_hosts
+    - chmod 600 ~/.ssh/known_hosts
+    - cat ~/.ssh/known_hosts
+    # Test ssh connection
+    # Copy docker-compose, .env to the server
+    - pwd
+    - ls -la
+    - sed -i "s,{api-image},${API_IMAGE}:$CI_COMMIT_SHA,g;s,{identity-image},${IDENTITY_IMAGE}:$CI_COMMIT_SHA,g;s,{frontend-image},${FRONTEND_IMAGE}:$CI_COMMIT_SHA,g" ./docker-compose.staging.yml
+    - ssh -i ~/.ssh/ssh.pem ${SSH_USERNAME}@${DEPLOYMENT_STAGING_SERVER_IP} -p ${DEPLOYMENT_PORT} "mkdir -p ~/petrel"
+    - scp -i ~/.ssh/ssh.pem -P ${DEPLOYMENT_PORT} -r  ./docker-compose.staging.yml ${SSH_USERNAME}@${DEPLOYMENT_STAGING_SERVER_IP}:/home/${SSH_USERNAME}/petrel
+
+  script:
+    # run docker-compose
+    - ssh -i ~/.ssh/ssh.pem ${SSH_USERNAME}@${DEPLOYMENT_STAGING_SERVER_IP} -p ${DEPLOYMENT_PORT}
+      "cd ~/petrel;
+      docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com;
+      docker-compose -f ./docker-compose.staging.yml stop;
+      docker-compose -f ./docker-compose.staging.yml rm -f;
+      docker rmi $(docker images -a -q);
+      docker rm -f front;
+      sudo rm -rf /usr/share/nginx/html/stage/html/*;
+      docker-compose -f ./docker-compose.staging.yml pull;
+      docker-compose -f ./docker-compose.staging.yml up -d;
+      docker create -ti --name front ${FRONTEND_IMAGE}:$CI_COMMIT_SHA bash;
+      sudo docker cp front:/usr/share/nginx/html /usr/share/nginx/html/stage/;"
+
+  after_script:
+    - ACCESS_TOKEN=${ACCESS_TOKEN}
+    - ENVIRONMENT=staging
+    - LOCAL_USERNAME=${LOCAL_USERNAME}
+
+deploy to production:
+  image: docker:stable
+  tags:
+    - shared
+  stage: deploy
+  only:
+    - master
+  environment:
+    name: production
+  before_script:
+    - apk update
+    - apk add openssh curl
+    - mkdir -p ~/.ssh
+    - chmod 700 ~/.ssh
+    - echo "${DEPLOY_PROD_SERVER_PRIVATE_KEY}" | tr -d '\r' > ~/.ssh/ssh.pem
+    - chmod 600 ~/.ssh/ssh.pem
+    - ssh-keyscan -p ${DEPLOYMENT_PORT} -H ${DEPLOYMENT_PROD_SERVER_IP} >> ~/.ssh/known_hosts
+    - chmod 600 ~/.ssh/known_hosts
+    - cat ~/.ssh/known_hosts
+    # Test ssh connection
+    # Copy docker-compose, .env to the server
+    - pwd
+    - ls -la
+    - sed -i "s,{api-image},${API_IMAGE_PROD}:$CI_COMMIT_SHA,g;s,{identity-image},${IDENTITY_IMAGE_PROD}:$CI_COMMIT_SHA,g;s,{frontend-image},${FRONTEND_IMAGE_PROD}:$CI_COMMIT_SHA,g" ./docker-compose.production.yml
+    - ssh -i ~/.ssh/ssh.pem ${SSH_USERNAME}@${DEPLOYMENT_PROD_SERVER_IP} -p ${DEPLOYMENT_PORT} "mkdir -p ~/petrel"
+    - scp -i ~/.ssh/ssh.pem -P ${DEPLOYMENT_PORT} -r  ./docker-compose.production.yml ${SSH_USERNAME}@${DEPLOYMENT_PROD_SERVER_IP}:/home/${SSH_USERNAME}/petrel
+
+  script:
+    # run docker-compose
+    - ssh -i ~/.ssh/ssh.pem ${SSH_USERNAME}@${DEPLOYMENT_PROD_SERVER_IP} -p ${DEPLOYMENT_PORT}
+      "cd ~/petrel;
+      docker login --username ${LOCAL_USERNAME} --password ${ACCESS_TOKEN} registry.gitlab.com;
+      docker-compose -f ./docker-compose.production.yml stop;
+      docker-compose -f ./docker-compose.production.yml rm -f;
+      docker rmi $(docker images -a -q);
+      docker rm -f prod;
+      docker-compose -f ./docker-compose.production.yml pull;
+      docker-compose -f ./docker-compose.production.yml up -d;
+      docker create -ti --name prod ${FRONTEND_IMAGE_PROD}:$CI_COMMIT_SHA bash;
+      sudo docker cp prod:/usr/share/nginx/html /usr/share/nginx/html/prod/;"
+
+  after_script:
+    - ACCESS_TOKEN=${ACCESS_TOKEN}
+    - ENVIRONMENT=production
+    - LOCAL_USERNAME=${LOCAL_USERNAME}

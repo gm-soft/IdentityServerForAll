@@ -1,0 +1,175 @@
+version: "3.4"
+
+networks:
+  logging-network:
+    driver: bridge
+  petrel-network:
+    driver: bridge
+
+services:
+  database.api:
+    container_name: petrel-api-database
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: pi
+      POSTGRES_PASSWORD: Str0ngPass!
+      POSTGRES_DB: petrelcore
+      POSTGRES_ADMIN_PASSWORD: Str0ngPass!
+    ports:
+      - 5432:5432
+    networks:
+      - petrel-network
+
+  database.identity:
+    container_name: petrel-identity-database
+    image: postgres:13
+    restart: always
+    environment:
+      POSTGRES_USER: pi
+      POSTGRES_PASSWORD: Str0ngPass!
+      POSTGRES_DB: petrelidentity
+      POSTGRES_ADMIN_PASSWORD: Str0ngPass!
+    ports:
+      - 5433:5432
+    networks:
+      - petrel-network
+
+  identityserver:
+    container_name: petrel-identity-server
+    image: petrel/petrelidentityserver
+    restart: always
+    depends_on:
+      - database.identity
+      - kafka
+      - elasticsearch
+    build:
+      context: ./src
+      dockerfile: Dockerfile_Identity
+    environment:
+      ASPNETCORE_Kestrel__Certificates__Default__Password: password
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:44393
+      ASPNETCORE_HTTPS_PORT: 44393
+      ConnectionStrings:DefaultConnection: Host=database.identity;Database=petrelidentity;User Id=pi;Password=Str0ngPass!
+      ElasticSearch:ConnectionString: http://elasticsearch:9200
+      MessageBroker:Host: kafka:9093
+      MessageBroker:MessageTimeoutMs: 3000
+      IssuerUri: https://identityserver
+    ports:
+      - 44393:44393
+    networks:
+      - petrel-network
+    volumes:
+      - ~/.aspnet/https:/https:ro
+
+  api:
+    container_name: petrel-api
+    image: petrel/api
+    restart: always
+    depends_on:
+      - database.api
+      - kafka
+      - elasticsearch
+      - identityserver
+    build:
+      context: ./src
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_Kestrel__Certificates__Default__Password: password
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/aspnetapp.pfx
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: https://+:44338
+      ASPNETCORE_HTTPS_PORT: 44338
+      ConnectionStrings:DefaultConnection: Host=database.api;Database=petrelcore;User Id=pi;Password=Str0ngPass!
+      ElasticSearch:ConnectionString: http://elasticsearch:9200
+      IdentityServer:Authority: https://identityserver:44393
+      MessageBroker:Host: kafka:9093
+      MessageBroker:MessageTimeoutMs: 3000
+    ports:
+      - 44338:44338
+    networks:
+      - petrel-network
+    volumes:
+      - ~/.aspnet/https:/https:ro
+
+  elasticsearch:
+    container_name: petrel-elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.5.2
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - 9200:9200
+    #volumes:
+    #  - elasticsearch-data:/usr/share/elasticsearch/data
+    networks:
+      - logging-network
+      - petrel-network
+
+  kibana:
+    container_name: petrel-kibana
+    image: docker.elastic.co/kibana/kibana:7.5.2
+    environment:
+      SERVER_NAME: kibana.local
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - 5601:5601
+    networks:
+      - logging-network
+      - petrel-network
+
+  zookeeper:
+    container_name: petrel-zookeeper
+    restart: always
+    image: wurstmeister/zookeeper:latest
+    ports:
+      - "2181:2181"
+    networks:
+      - petrel-network
+
+  # https://www.kaaproject.org/blog/kafka-docker
+  kafka:
+    container_name: petrel-kafka
+    image: wurstmeister/kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    expose:
+      - "9093"
+    environment:
+      KAFKA_ADVERTISED_LISTENERS: INSIDE://kafka:9093,OUTSIDE://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INSIDE:PLAINTEXT,OUTSIDE:PLAINTEXT
+      KAFKA_LISTENERS: INSIDE://0.0.0.0:9093,OUTSIDE://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_INTER_BROKER_LISTENER_NAME: INSIDE
+      KAFKA_CREATE_TOPICS: "user-change-queue:1:1,healthcheck-topic:1:1"
+    networks:
+      - petrel-network
+
+  sonarqube:
+    container_name: petrel-sonarqube
+    image: sonarqube:latest
+    restart: always
+    ports:
+      - 9001:9000
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_temp:/opt/sonarqube/temp
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+
+volumes:
+  elasticsearch-data:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:
+  sonarqube_temp:
