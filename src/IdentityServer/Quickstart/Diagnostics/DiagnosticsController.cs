@@ -11,6 +11,7 @@ namespace IdentityServer.Quickstart.Diagnostics
 {
     [SecurityHeaders]
     [Authorize]
+    [Route("Diagnostics")]
     public class DiagnosticsController : Controller
     {
         [ActionName("Index")]

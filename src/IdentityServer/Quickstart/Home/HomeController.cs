@@ -13,6 +13,8 @@ namespace IdentityServer.Quickstart.Home
 {
     [SecurityHeaders]
     [AllowAnonymous]
+    [Route("Home")]
+    [Route("")]
     public class HomeController : Controller
     {
         private readonly IIdentityServerInteractionService _interaction;
@@ -29,6 +31,8 @@ namespace IdentityServer.Quickstart.Home
             _logger = logger;
         }
 
+        [HttpGet("Index")]
+        [HttpGet("")]
         public IActionResult Index()
         {
             if (_environment.IsDevelopment())

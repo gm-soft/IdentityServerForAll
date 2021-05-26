@@ -19,6 +19,7 @@ namespace IdentityServer.Quickstart.Account
 {
     [SecurityHeaders]
     [AllowAnonymous]
+    [Route("External")]
     public class ExternalController : Controller
     {
         private readonly TestUserStore _users;

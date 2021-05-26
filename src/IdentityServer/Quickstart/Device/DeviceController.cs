@@ -21,6 +21,7 @@ namespace IdentityServer.Quickstart.Device
 {
     [Authorize]
     [SecurityHeaders]
+    [Route("Device")]
     public class DeviceController : Controller
     {
         private readonly IDeviceFlowInteractionService _interaction;

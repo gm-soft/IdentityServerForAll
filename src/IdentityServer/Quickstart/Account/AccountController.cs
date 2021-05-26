@@ -26,6 +26,7 @@ namespace IdentityServer.Quickstart.Account
     /// </summary>
     [SecurityHeaders]
     [AllowAnonymous]
+    [Route("Account")]
     public class AccountController : Controller
     {
         private readonly TestUserStore _users;

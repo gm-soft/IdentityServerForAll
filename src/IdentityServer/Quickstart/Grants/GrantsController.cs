@@ -18,6 +18,7 @@ namespace IdentityServer.Quickstart.Grants
     /// </summary>
     [SecurityHeaders]
     [Authorize]
+    [Route("Grants")]
     public class GrantsController : Controller
     {
         private readonly IIdentityServerInteractionService _interaction;
@@ -42,6 +43,7 @@ namespace IdentityServer.Quickstart.Grants
         /// </summary>
         /// <returns>Action.</returns>
         [HttpGet("Index")]
+        [HttpGet("")]
         [ActionName("Index")]
         public async Task<IActionResult> IndexAsync()
         {
