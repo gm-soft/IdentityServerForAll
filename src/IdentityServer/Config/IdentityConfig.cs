@@ -9,40 +9,43 @@ namespace IdentityServer.Config
 {
     public static class IdentityConfig
     {
-        public static IEnumerable<IdentityResource> IdentityResources =>
-            new List<IdentityResource>
+        public static IEnumerable<IdentityResource> IdentityResources
+        {
+            get
             {
-                new IdentityResources.OpenId(),
-                new IdentityResources.Profile(),
-            };
+                yield return new IdentityResources.OpenId();
+                yield return new IdentityResources.Profile();
+            }
+        }
 
-        public static IEnumerable<ApiScope> ApiScopes =>
-            new List<ApiScope>
+        public static IEnumerable<ApiScope> ApiScopes
+        {
+            get
             {
-                new ApiScope("api1", "My API")
-            };
+                yield return new ApiScope("api1", "My API");
+            }
+        }
 
-        public static IEnumerable<Client> Clients =>
-            new List<Client>
+        public static IEnumerable<Client> Clients
+        {
+            get
             {
                 // machine to machine client
-                new Client
+                yield return new Client
                 {
                     ClientId = "client",
                     ClientSecrets = { new Secret("secret".Sha256()) },
-
                     AllowedGrantTypes = GrantTypes.ClientCredentials,
 
                     // scopes that client has access to
                     AllowedScopes = { "api1" }
-                },
+                };
 
                 // interactive ASP.NET Core MVC client
-                new Client
+                yield return new Client
                 {
                     ClientId = "mvc",
                     ClientSecrets = { new Secret("secret".Sha256()) },
-
                     AllowedGrantTypes = GrantTypes.Code,
 
                     // where to redirect to after login
@@ -57,7 +60,8 @@ namespace IdentityServer.Config
                         IdentityServerConstants.StandardScopes.Profile,
                         "api1"
                     }
-                }
-            };
+                };
+            }
+        }
     }
 }
