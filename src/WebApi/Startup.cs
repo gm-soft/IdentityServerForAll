@@ -11,7 +11,8 @@ namespace WebApi
             services.AddControllers();
 
             // accepts any access token issued by identity server
-            services.AddAuthentication("Bearer")
+            services
+                .AddAuthentication("Bearer")
                 .AddJwtBearer("Bearer", options =>
                 {
                     options.Authority = "https://localhost:5001";
