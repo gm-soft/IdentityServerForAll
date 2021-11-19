@@ -2,7 +2,6 @@
 using System.Net.Http;
 using System.Threading.Tasks;
 using IdentityModel.Client;
-using Newtonsoft.Json.Linq;
 
 namespace ClinentCli
 {
@@ -52,7 +51,7 @@ namespace ClinentCli
             else
             {
                 var content = await response.Content.ReadAsStringAsync();
-                Console.WriteLine(JArray.Parse(content));
+                Console.WriteLine(System.Text.Json.JsonSerializer.Serialize(content));
             }
         }
     }
