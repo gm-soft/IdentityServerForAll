@@ -70,7 +70,7 @@ namespace IdentityServer.Quickstart.Account
             // start challenge and roundtrip the return URL and scheme
             var props = new AuthenticationProperties
             {
-                RedirectUri = Url.Action(nameof(CallbackAsync)),
+                RedirectUri = Url.Action("Callback"),
                 Items =
                 {
                     {
@@ -90,6 +90,7 @@ namespace IdentityServer.Quickstart.Account
         /// </summary>
         /// <returns>Action.</returns>
         [HttpGet("Callback")]
+        [ActionName("Callback")]
         public async Task<IActionResult> CallbackAsync()
         {
             // read external identity from the temporary cookie
