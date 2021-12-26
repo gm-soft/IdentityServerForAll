@@ -2,10 +2,9 @@
 
 ## How to start apps
 
-0. Install Docker, .netcore3.1 sdk, .net5 sdk
-1. Execute `infrastructure.ps1` script with powershell
+0. Install Docker, .netcore3.1 sdk, .net6 sdk
 2. Open the /src/IdentityServer.sln with Visual Studio or Rider
-3. Set up multiple project launch with your IDE. You should start all 3 apps: IdentityServer, WebApi and ClientCli
+3. Set up multiple project launch with your IDE. You should start all 2 apps: IdentityServer and WebApi
 
 ## How to setup IS4 in your project (ru)
 
@@ -13,7 +12,7 @@
 
 1. Добавить себе в солюшн проект [IS4](https://github.com/maximgorbatyuk/IdentityServerForAll/tree/master/src/IdentityServer)
 2. Настроить ресурс api в конфиге [IS4](https://github.com/maximgorbatyuk/IdentityServerForAll/blob/master/src/IdentityServer/Config/IdentityConfig.cs#L25)
-  - api1 - это идентификатор скоупа. Здесь может быть название модуля либо добенной области проекта. Если деления на разные API нет, то допустимо оставить любой идентификатор
+  - core.api - это идентификатор скоупа. Здесь может быть название модуля либо добенной области проекта. Если деления на разные API нет, то допустимо оставить любой идентификатор
 3. Добавить клиентов - SPA, m2m, etc - [здесь](https://github.com/maximgorbatyuk/IdentityServerForAll/blob/master/src/IdentityServer/Config/IdentityConfig.cs#L29)
   - В качестве [секрета](https://github.com/maximgorbatyuk/IdentityServerForAll/blob/master/src/IdentityServer/Config/IdentityConfig.cs#L37) можно использовать любую строку. Ее же нужно будет упомянуть в настройках самого клиента.
   - Не забыть указать [идентификатор](https://github.com/maximgorbatyuk/IdentityServerForAll/blob/master/src/IdentityServer/Config/IdentityConfig.cs#L59) скоупа API, а также другие необходимые скоупы

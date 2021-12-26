@@ -3,6 +3,7 @@
 
 using IdentityServer.Config;
 using IdentityServer.Quickstart;
+using IdentityServer4.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -27,6 +28,7 @@ namespace IdentityServer
         {
             services.AddControllersWithViews();
 
+            services.AddScoped<IProfileService, CustomProfileService>();
             var builder = services.AddIdentityServer(options =>
                 {
                     options.Events.RaiseErrorEvents = true;
@@ -40,7 +42,8 @@ namespace IdentityServer
                 .AddInMemoryIdentityResources(IdentityConfig.IdentityResources)
                 .AddInMemoryApiScopes(IdentityConfig.ApiScopes)
                 .AddInMemoryClients(IdentityConfig.Clients)
-                .AddTestUsers(TestUsers.Users);
+                .AddTestUsers(TestUsers.Users)
+                .AddProfileService<CustomProfileService>();
 
             // not recommended for production - you need to store your key material somewhere secure
             builder.AddDeveloperSigningCredential();

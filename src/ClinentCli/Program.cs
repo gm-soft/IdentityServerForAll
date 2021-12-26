@@ -13,7 +13,7 @@ namespace ClinentCli
         {
             var client = new HttpClient();
 
-            var disco = await client.GetDiscoveryDocumentAsync("https://localhost:5001");
+            var disco = await client.GetDiscoveryDocumentAsync("https://localhost:6001");
             if (disco.IsError)
             {
                 Console.WriteLine(disco.Error);
@@ -27,7 +27,7 @@ namespace ClinentCli
                 ClientId = "client",
                 ClientSecret = "secret",
 
-                Scope = "api1"
+                Scope = "core.api"
             });
 
             if (tokenResponse.IsError)
@@ -43,7 +43,7 @@ namespace ClinentCli
             var apiClient = new HttpClient();
             apiClient.SetBearerToken(tokenResponse.AccessToken);
 
-            var response = await apiClient.GetAsync("https://localhost:6001/identity");
+            var response = await apiClient.GetAsync("https://localhost:5001/identity");
             if (!response.IsSuccessStatusCode)
             {
                 Console.WriteLine(response.StatusCode);
