@@ -21,8 +21,9 @@ namespace IdentityServer.Config.Clients
             AllowedScopes = new List<string>
             {
                 IdentityServerConstants.StandardScopes.OpenId,
+                IdentityServerConstants.StandardScopes.Email,
                 IdentityServerConstants.StandardScopes.Profile,
-                "api1"
+                "core.api"
             };
         }
     }
